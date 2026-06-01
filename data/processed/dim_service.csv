@@ -1,0 +1,12 @@
+service_id,service,cloud_provider
+1,AWS Glue,AWS
+2,AWS Lambda,AWS
+3,Amazon Athena,AWS
+4,Amazon CloudFront,AWS
+5,Amazon CloudWatch,AWS
+6,Amazon EBS,AWS
+7,Amazon EC2,AWS
+8,Amazon NAT Gateway,AWS
+9,Amazon RDS,AWS
+10,Amazon S3,AWS
+11,Amazon SageMaker,AWS

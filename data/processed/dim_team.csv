@@ -1,0 +1,7 @@
+team_project_id,team,project,environment
+1,data,analytics,prod
+2,data,cost-analytics,dev
+3,marketing,campaigns,staging
+4,ml,recommendations,prod
+5,platform,checkout,prod
+6,unknown,unallocated,unknown

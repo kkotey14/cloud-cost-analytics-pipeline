@@ -1,0 +1,31 @@
+cost_id,billing_date,cloud_provider,account_id,service,region,usage_type,cost,currency,environment,team,project,resource_id,is_tagged,is_unallocated
+1,2026-01-01,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,122.5,USD,prod,platform,checkout,i-0a111,1,0
+2,2026-01-01,AWS,100100100100,Amazon RDS,us-east-1,InstanceUsage:db.t3.medium,78.25,USD,prod,platform,checkout,rds-checkout,1,0
+3,2026-01-01,AWS,100100100100,Amazon S3,us-east-1,TimedStorage-ByteHrs,18.4,USD,prod,data,analytics,s3-curated,1,0
+4,2026-01-01,AWS,200200200200,AWS Lambda,us-east-1,GB-Second,7.8,USD,dev,data,cost-analytics,lambda-etl,1,0
+5,2026-01-02,AWS,100100100100,Amazon CloudWatch,us-east-1,DataProcessing-Bytes,12.3,USD,prod,platform,checkout,cw-checkout,1,0
+6,2026-01-02,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,124.1,USD,prod,platform,checkout,i-0a111,1,0
+7,2026-01-02,AWS,200200200200,Amazon Athena,us-east-1,DataScanned,4.25,USD,dev,data,cost-analytics,athena-cost,1,0
+8,2026-01-03,AWS,200200200200,Amazon S3,us-east-1,Requests-Tier1,2.6,USD,dev,data,cost-analytics,s3-raw,1,0
+9,2026-01-03,AWS,300300300300,Amazon EC2,us-west-2,BoxUsage:c6i.xlarge,210.7,USD,prod,ml,recommendations,i-0b222,1,0
+10,2026-01-03,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,168.95,USD,prod,ml,recommendations,sagemaker-train,1,0
+11,2026-01-04,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,123.9,USD,prod,platform,checkout,i-0a111,1,0
+12,2026-01-04,AWS,400400400400,Amazon EC2,us-east-2,BoxUsage:t3.large,64.2,USD,staging,marketing,campaigns,i-0c333,1,0
+13,2026-01-04,AWS,400400400400,Amazon S3,us-east-2,TimedStorage-ByteHrs,9.1,USD,staging,marketing,campaigns,s3-assets,1,0
+14,2026-01-05,AWS,300300300300,Amazon EC2,us-west-2,BoxUsage:c6i.xlarge,215.3,USD,prod,ml,recommendations,i-0b222,1,0
+15,2026-01-05,AWS,300300300300,Amazon SageMaker,us-west-2,Endpoint-Hours,142.0,USD,prod,ml,recommendations,sagemaker-endpoint,1,0
+16,2026-01-05,AWS,500500500500,Amazon EC2,us-east-1,BoxUsage:m5.large,96.4,USD,unknown,unknown,unallocated,i-0d444,0,1
+17,2026-01-06,AWS,100100100100,Amazon RDS,us-east-1,InstanceUsage:db.t3.medium,81.1,USD,prod,platform,checkout,rds-checkout,1,0
+18,2026-01-06,AWS,200200200200,AWS Glue,us-east-1,DPU-Hour,28.7,USD,dev,data,cost-analytics,glue-job,1,0
+19,2026-01-06,AWS,500500500500,Amazon EBS,us-east-1,VolumeUsage.gp3,33.85,USD,unknown,unknown,unallocated,vol-0e555,0,1
+20,2026-01-07,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,126.8,USD,prod,platform,checkout,i-0a111,1,0
+21,2026-01-07,AWS,200200200200,Amazon S3,us-east-1,TimedStorage-ByteHrs,19.25,USD,dev,data,cost-analytics,s3-raw,1,0
+22,2026-01-07,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,310.6,USD,prod,ml,recommendations,sagemaker-train,1,0
+23,2026-01-08,AWS,100100100100,Amazon CloudFront,global,DataTransfer-Out-Bytes,52.2,USD,prod,platform,checkout,cf-checkout,1,0
+24,2026-01-08,AWS,400400400400,Amazon S3,us-east-2,Requests-Tier1,3.45,USD,staging,marketing,campaigns,s3-assets,1,0
+25,2026-01-08,AWS,500500500500,Amazon EC2,us-east-1,BoxUsage:m5.large,101.55,USD,unknown,unknown,unallocated,i-0d444,0,1
+26,2026-01-09,AWS,100100100100,Amazon RDS,us-east-1,BackupUsage,23.6,USD,prod,platform,checkout,rds-checkout,1,0
+27,2026-01-09,AWS,200200200200,AWS Lambda,us-east-1,Request,5.3,USD,dev,data,cost-analytics,lambda-etl,1,0
+28,2026-01-09,AWS,300300300300,Amazon EC2,us-west-2,BoxUsage:c6i.xlarge,219.2,USD,prod,ml,recommendations,i-0b222,1,0
+29,2026-01-10,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,455.4,USD,prod,ml,recommendations,sagemaker-train,1,0
+30,2026-01-10,AWS,500500500500,Amazon NAT Gateway,us-east-1,NatGateway-Bytes,75.9,USD,unknown,unknown,unallocated,nat-0f666,0,1
