@@ -9,6 +9,10 @@ cloud-ready path: the ETL can read `s3://` billing files, Terraform defines AWS
 storage and alerting infrastructure, and an alert script can send cost spike
 reports to Slack or email.
 
+## Live Demo
+
+[Open the Cloud Cost Analytics Dashboard](https://cloud-cost-analytics-pipeline-jhusqf4lp4yfcqyevroawy.streamlit.app/)
+
 ## Architecture
 
 ```text
