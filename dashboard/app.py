@@ -142,6 +142,20 @@ def axis_label(value: str) -> str:
     return parsed.strftime("%b %d")
 
 
+def svg_point_with_tooltip(index: int, x: float, y: float, label: str, value: float, width: int, top: int) -> str:
+    tooltip_x = min(max(x, 90), width - 90)
+    tooltip_y = max(top + 8, y - 46)
+    return (
+        f'<g class="tooltip-point" style="animation-delay:{index * 70}ms">'
+        f'<circle class="live-point" cx="{x:.1f}" cy="{y:.1f}" r="6"></circle>'
+        f'<g class="svg-tooltip" transform="translate({tooltip_x:.1f},{tooltip_y:.1f})">'
+        f'<rect x="-82" y="-30" width="164" height="32" rx="8"></rect>'
+        f'<text x="0" y="-10" text-anchor="middle">{escape(label)}: {currency(value)}</text>'
+        f'</g>'
+        f'</g>'
+    )
+
+
 def svg_line_chart(data: pd.DataFrame, x_field: str = "billing_date", value_field: str = "cost", x_label: str = "Date") -> str:
     chart = data.copy()
     chart[value_field] = pd.to_numeric(chart[value_field], errors="coerce").fillna(0)
@@ -181,10 +195,7 @@ def svg_line_chart(data: pd.DataFrame, x_field: str = "billing_date", value_fiel
                 f'<text x="{x:.1f}" y="{height - 52}" text-anchor="middle" class="axis-text axis-date">{escape(short_label)}</text>'
             )
 
-    circles = "".join(
-        f'<circle class="live-point" style="animation-delay:{index * 70}ms" cx="{x:.1f}" cy="{y:.1f}" r="5"><title>{escape(label)}: {currency(cost)}</title></circle>'
-        for index, (x, y, label, cost) in enumerate(points)
-    )
+    circles = "".join(svg_point_with_tooltip(index, x, y, label, cost, width, top) for index, (x, y, label, cost) in enumerate(points))
     first_x, first_y = points[0][:2]
     last_x, last_y = points[-1][:2]
     area_points = f"{line_points} {last_x:.1f},{top + plot_height:.1f} {first_x:.1f},{top + plot_height:.1f}"
@@ -209,7 +220,7 @@ def svg_line_chart(data: pd.DataFrame, x_field: str = "billing_date", value_fiel
         <polyline class="chart-line" points="{line_points}" fill="none" stroke="#58A6FF" stroke-width="3.5" />
         {circles}
         <circle class="live-latest-pulse" cx="{last_x:.1f}" cy="{last_y:.1f}" r="10"></circle>
-        <circle class="live-latest-dot" cx="{last_x:.1f}" cy="{last_y:.1f}" r="6"><title>{escape(latest_label)}: {currency(latest_cost)}</title></circle>
+        <circle class="live-latest-dot" cx="{last_x:.1f}" cy="{last_y:.1f}" r="6"></circle>
         {''.join(x_labels)}
         <text x="{width / 2}" y="{height - 6}" text-anchor="middle" class="axis-title">{escape(x_label)}</text>
         <text x="18" y="{height / 2}" text-anchor="middle" transform="rotate(-90 18,{height / 2})" class="axis-title">Cost</text>
@@ -342,11 +353,7 @@ def svg_monthly_trend_chart(data: pd.DataFrame) -> str:
     first_x, first_y = points[0][:2]
     last_x, last_y = points[-1][:2]
     area_path = f"{line_path} L {last_x:.1f} {top + plot_height:.1f} L {first_x:.1f} {top + plot_height:.1f} Z"
-    circles = "".join(
-        f'<circle class="live-point" style="animation-delay:{500 + index * 110}ms" cx="{x:.1f}" cy="{y:.1f}" r="5">'
-        f'<title>{escape(month)}: {currency(spend)}</title></circle>'
-        for index, (x, y, month, spend) in enumerate(points)
-    )
+    circles = "".join(svg_point_with_tooltip(index, x, y, month, spend, width, top) for index, (x, y, month, spend) in enumerate(points))
     last_month = str(rows[-1]["billing_month"])
     last_spend = float(rows[-1]["monthly_spend"])
     last_change = float(rows[-1]["mom_change"])
@@ -380,7 +387,6 @@ def svg_monthly_trend_chart(data: pd.DataFrame) -> str:
         {circles}
         <circle class="live-latest-pulse" cx="{last_x:.1f}" cy="{last_y:.1f}" r="11"></circle>
         <circle class="live-latest-dot" cx="{last_x:.1f}" cy="{last_y:.1f}" r="6">
-          <title>{escape(last_month)}: {currency(last_spend)}</title>
         </circle>
         {''.join(labels)}
       </svg>
@@ -881,8 +887,31 @@ st.markdown(
         fill: #FF9900;
         stroke: #0D1117;
         stroke-width: 3;
+        opacity: 1;
+    }
+    .tooltip-point {
         opacity: 0;
         animation: point-pop 0.35s ease-out forwards;
+        cursor: pointer;
+    }
+    .svg-tooltip {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.06s ease-out;
+        filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.35));
+    }
+    .tooltip-point:hover .svg-tooltip {
+        opacity: 1;
+    }
+    .svg-tooltip rect {
+        fill: #F9FAFB;
+        stroke: #58A6FF;
+        stroke-width: 1.5;
+    }
+    .svg-tooltip text {
+        fill: #111827;
+        font-size: 13px;
+        font-weight: 800;
     }
     .live-latest-dot {
         fill: #58A6FF;
