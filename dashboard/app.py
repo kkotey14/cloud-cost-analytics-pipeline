@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import os
 import sqlite3
 import sys
 from html import escape
@@ -16,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from etl.process_billing_data import REQUIRED_COLUMNS, build_fact_table, build_tables, clean_billing_data
+from alerts.send_alerts import post_slack, send_email
 
 DB_PATH = ROOT / "data" / "processed" / "cloud_costs.db"
 SAMPLE_CSV_PATH = ROOT / "data" / "raw" / "cloud_billing_sample.csv"
@@ -468,6 +470,77 @@ def chart_summary(data: pd.DataFrame, group_name: str) -> str:
         return "No matching records."
     label, amount = top_group(data, group_name)
     return f"{label} is highest at {currency(amount)}."
+
+
+def alert_spikes(data: pd.DataFrame, threshold: float) -> pd.DataFrame:
+    if data.empty:
+        return data
+    alerts = data[(data["is_spike"] == 1) | (data["cost"] >= threshold)].copy()
+    return alerts.sort_values("billing_date", ascending=False)
+
+
+def ownership_alert_rows(data: pd.DataFrame) -> pd.DataFrame:
+    unallocated = data[data["is_unallocated"] == 1]
+    if unallocated.empty:
+        return pd.DataFrame(columns=["team", "project", "environment", "cost"])
+    return (
+        unallocated.groupby(["team", "project", "environment"], as_index=False)["cost"]
+        .sum()
+        .sort_values("cost", ascending=False)
+    )
+
+
+def build_dashboard_alert_report(
+    daily_data: pd.DataFrame,
+    fact_data: pd.DataFrame,
+    budget_data: pd.DataFrame,
+    total: float,
+    forecast: float,
+    unallocated: float,
+    spike_threshold: float,
+    ownership_threshold: float,
+) -> str:
+    spikes = alert_spikes(daily_data, spike_threshold)
+    ownership_rate = unallocated / total if total else 0.0
+    budget_alerts = budget_data[budget_data["status"].isin(["over budget", "watch"])].copy()
+
+    lines = [
+        "Cloud Cost Alert Report",
+        "",
+        f"Total spend: {currency(total)}",
+        f"Forecasted month-end spend: {currency(forecast)}",
+        f"Unallocated spend: {currency(unallocated)} ({ownership_rate * 100:.1f}%)",
+        "",
+    ]
+
+    if spikes.empty:
+        lines.append(f"No daily cost spikes or days above {currency(spike_threshold)}.")
+    else:
+        lines.append("Cost spikes:")
+        for row in spikes.head(10).itertuples(index=False):
+            rolling_average = getattr(row, "rolling_3_day_avg", 0)
+            lines.append(f"- {row.billing_date}: {currency(float(row.cost))} (3-day avg {currency(float(rolling_average))})")
+    lines.append("")
+
+    if ownership_rate >= ownership_threshold:
+        lines.append(f"Ownership cleanup needed: {ownership_rate * 100:.1f}% of spend is missing ownership.")
+        for row in ownership_alert_rows(fact_data).head(5).itertuples(index=False):
+            lines.append(f"- {row.team} / {row.project} / {row.environment}: {currency(float(row.cost))}")
+    else:
+        lines.append(f"Ownership cleanup is below threshold: {ownership_rate * 100:.1f}%.")
+    lines.append("")
+
+    if budget_alerts.empty:
+        lines.append("No teams are over budget or near budget.")
+    else:
+        lines.append("Budget variance:")
+        for row in budget_alerts.sort_values(["billing_month", "variance"], ascending=[False, False]).head(10).itertuples(index=False):
+            lines.append(
+                f"- {row.billing_month} {row.team}: {row.status} by "
+                f"{currency(float(row.variance))} on {currency(float(row.actual_spend))} actual spend"
+            )
+
+    return "\n".join(lines)
 
 
 def show_metric_help(label: str, value: object, help_text: str, accent: str = "blue") -> None:
@@ -1361,7 +1434,7 @@ st.write(f"Data source: **{data_source}** | Records analyzed: **{record_count}**
 
 selected_section = st.radio(
     "Dashboard section",
-    ["Overview", "Explore Costs", "Problem Areas", "Data"],
+    ["Overview", "Explore Costs", "Problem Areas", "Alerts", "Data"],
     horizontal=True,
     label_visibility="collapsed",
     key="dashboard_section",
@@ -1545,6 +1618,124 @@ if selected_section == "Problem Areas":
 
     st.subheader("Top 10 Resources")
     show_table(top_resources(fact))
+
+if selected_section == "Alerts":
+    st.subheader("Alert Center")
+    st.caption("Generate a cost alert report from the active billing data. Delivery buttons appear when Slack or email settings are configured.")
+
+    control_cols = st.columns(2)
+    with control_cols[0]:
+        spike_threshold = st.number_input(
+            "Daily spike threshold",
+            min_value=0,
+            max_value=100000,
+            value=500,
+            step=50,
+            help="Any day at or above this amount appears in the alert report. Existing rolling-average spikes are also included.",
+        )
+    with control_cols[1]:
+        ownership_threshold_percent = st.number_input(
+            "Ownership cleanup threshold (%)",
+            min_value=0,
+            max_value=100,
+            value=10,
+            step=1,
+            help="Alert when this percentage of spend is missing clear ownership.",
+        )
+
+    spike_alerts = alert_spikes(daily, float(spike_threshold))
+    ownership_rate = (unallocated_spend / total_spend) if total_spend else 0.0
+    ownership_threshold = ownership_threshold_percent / 100
+
+    st.subheader("Alert Status")
+    alert_cols = st.columns(4)
+    with alert_cols[0]:
+        show_metric_help("Spike Alerts", len(spike_alerts), "Days flagged by rolling average or threshold.", "red" if len(spike_alerts) else "green")
+    with alert_cols[1]:
+        show_metric_help("Missing Ownership", currency(unallocated_spend), "Spend without clear team, project, environment, or tag.", "red" if ownership_rate >= ownership_threshold else "green")
+    with alert_cols[2]:
+        show_metric_help("Ownership Rate", f"{ownership_rate * 100:.1f}%", "Share of spend needing ownership cleanup.", "amber")
+    with alert_cols[3]:
+        delivery_count = int(bool(os.getenv("SLACK_WEBHOOK_URL"))) + int(
+            all(
+                os.getenv(name)
+                for name in ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "ALERT_EMAIL_FROM", "ALERT_EMAIL_TO"]
+            )
+        )
+        show_metric_help("Delivery Options", delivery_count, "Configured Slack/email delivery methods.", "blue")
+
+    if spike_alerts.empty:
+        callout("Cost spikes", f"No daily spend is flagged or above {currency(float(spike_threshold))}.", "good")
+    else:
+        callout("Cost spikes detected", f"{len(spike_alerts)} day(s) should be reviewed for cost changes.", "warn")
+        show_table(spike_alerts)
+
+    ownership_rows = ownership_alert_rows(fact)
+    if ownership_rate >= ownership_threshold:
+        callout(
+            "Ownership alert",
+            f"{ownership_rate * 100:.1f}% of spend is missing ownership, which is above the {ownership_threshold_percent}% threshold.",
+            "warn",
+        )
+        show_table(ownership_rows)
+    else:
+        callout(
+            "Ownership status",
+            f"Missing ownership is {ownership_rate * 100:.1f}%, which is below the {ownership_threshold_percent}% threshold.",
+            "good",
+        )
+
+    st.subheader("Generate Alert Report")
+    if st.button("Generate Alert Report", type="primary"):
+        st.session_state["alert_report"] = build_dashboard_alert_report(
+            daily,
+            fact,
+            team_budget_variance,
+            float(total_spend),
+            float(forecasted_spend),
+            float(unallocated_spend),
+            float(spike_threshold),
+            float(ownership_threshold),
+        )
+
+    report = st.session_state.get("alert_report", "")
+    if report:
+        st.text_area("Alert report preview", report, height=320)
+        st.download_button(
+            "Download alert report",
+            data=report,
+            file_name="cloud_cost_alert_report.txt",
+            mime="text/plain",
+        )
+
+        send_cols = st.columns(2)
+        slack_ready = bool(os.getenv("SLACK_WEBHOOK_URL"))
+        email_ready = all(
+            os.getenv(name)
+            for name in ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "ALERT_EMAIL_FROM", "ALERT_EMAIL_TO"]
+        )
+
+        with send_cols[0]:
+            if slack_ready:
+                if st.button("Send Slack Alert"):
+                    try:
+                        post_slack(report)
+                        st.success("Slack alert sent.")
+                    except Exception as exc:
+                        st.error(f"Slack alert failed: {exc}")
+            else:
+                st.info("Slack delivery is hidden until `SLACK_WEBHOOK_URL` is configured.")
+
+        with send_cols[1]:
+            if email_ready:
+                if st.button("Send Email Alert"):
+                    try:
+                        send_email(report)
+                        st.success("Email alert sent.")
+                    except Exception as exc:
+                        st.error(f"Email alert failed: {exc}")
+            else:
+                st.info("Email delivery is hidden until SMTP environment variables are configured.")
 
 if selected_section == "Data":
     st.subheader("Organized Billing Data")

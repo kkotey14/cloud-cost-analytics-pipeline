@@ -20,6 +20,7 @@ A cloud cost analytics dashboard built for cloud engineering and data analyst po
 - **Overview:** total spend, month-end forecast, ownership cleanup, top service, data quality, and budget check.
 - **Explore Costs:** filters by team, project, environment, and service.
 - **Problem Areas:** daily spikes, unallocated spend, and top resources to investigate.
+- **Alerts:** adjustable thresholds, generated alert reports, and optional Slack/email delivery.
 - **Data:** cleaned billing data with export support.
 - **Charts:** custom animated SVG charts with readable labels, live-style panels, and instant tooltips.
 
@@ -242,4 +243,3 @@ cloud-cost-analytics-pipeline/
 ├── requirements.txt
 └── README.md
 ```
-
