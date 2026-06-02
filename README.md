@@ -225,24 +225,3 @@ cloud-cost-analytics-pipeline/
 └── README.md
 ```
 
-## Portfolio Talking Points
-
-- Built an end-to-end cloud cost analytics pipeline using Python, SQL, SQLite, and Streamlit.
-- Modeled billing data into fact, dimension, summary, and budget variance tables.
-- Created an interactive dashboard for cloud spend monitoring, filtering, forecasting, and ownership cleanup.
-- Added custom charts, CSV upload, downloadable outputs, SQL checks, and unit tests.
-- Added cloud engineering extensions including S3 input support, Terraform infrastructure, and Slack/email alert reporting.
-
-## Resume Bullets
-
-- Built a cloud cost analytics pipeline that processes AWS-style billing data into analytics-ready tables for SQL analysis and dashboard reporting.
-- Created a Streamlit dashboard to monitor cloud spend, month-end forecast, top services, cost spikes, unallocated resources, and team budget variance.
-- Added test coverage, SQL validation, S3 input support, Terraform infrastructure, and alert reporting for a cloud-ready project design.
-
-## Future Improvements
-
-- Package the ETL as an AWS Lambda function triggered by S3 uploads.
-- Store curated output as Parquet in S3 and query it with Athena.
-- Add CloudWatch scheduling for daily cost alert checks.
-- Add richer anomaly detection using historical billing patterns.
-- Add a Power BI or Tableau version of the dashboard.
