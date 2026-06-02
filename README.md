@@ -23,6 +23,24 @@ A cloud cost analytics dashboard built for cloud engineering and data analyst po
 - **Data:** cleaned billing data with export support.
 - **Charts:** custom animated SVG charts with readable labels, live-style panels, and instant tooltips.
 
+## Screenshots
+
+### Overview
+
+<img src="docs/screenshots/overview.png" alt="Overview dashboard showing spend summary, ownership cleanup, insights, and budget check" width="900">
+
+### Explore Costs
+
+<img src="docs/screenshots/explore-costs-filtered.png" alt="Explore Costs view showing filtered spend summary and daily trend chart" width="900">
+
+### Problem Areas
+
+<img src="docs/screenshots/problem-areas.png" alt="Problem Areas view showing cost spikes, missing ownership, and resources to investigate" width="900">
+
+### Organized Data
+
+<img src="docs/screenshots/organized-data.png" alt="Organized billing data table showing cleaned cloud billing records" width="900">
+
 ## Tech Stack
 
 - **Python:** ETL, data cleaning, validation, alert logic
