@@ -6,14 +6,17 @@ import csv
 import sqlite3
 from collections import defaultdict
 from datetime import datetime
+from io import StringIO
 from pathlib import Path
 from typing import Any, Iterable
+from urllib.parse import urlparse
 
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INPUT = ROOT / "data" / "raw" / "cloud_billing_sample.csv"
 DEFAULT_OUTPUT_DIR = ROOT / "data" / "processed"
 DEFAULT_DB_PATH = DEFAULT_OUTPUT_DIR / "cloud_costs.db"
+DEFAULT_TEAM_BUDGETS = ROOT / "config" / "team_budgets.csv"
 
 REQUIRED_COLUMNS = {
     "billing_date",
@@ -37,6 +40,8 @@ TABLE_ORDER = (
     "dim_service",
     "dim_team",
     "daily_spend_summary",
+    "monthly_spend_summary",
+    "team_budget_variance",
     "executive_summary",
 )
 
@@ -46,22 +51,65 @@ def normalize_text(value: object, fallback: str = "unknown") -> str:
     return text.lower() if text else fallback
 
 
-def load_raw_billing(path: Path) -> list[dict[str, str]]:
+def read_s3_text(uri: str) -> str:
+    """Read a CSV object from S3 when the optional boto3 dependency is installed."""
+    parsed = urlparse(uri)
+    if parsed.scheme != "s3" or not parsed.netloc or not parsed.path.strip("/"):
+        raise ValueError("S3 input must look like s3://bucket/key.csv")
+
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError("Install boto3 to read billing files from S3: pip install boto3") from exc
+
+    response = boto3.client("s3").get_object(Bucket=parsed.netloc, Key=parsed.path.lstrip("/"))
+    return response["Body"].read().decode("utf-8-sig")
+
+
+def validate_billing_rows(reader: csv.DictReader, source_name: str) -> list[dict[str, str]]:
+    missing = REQUIRED_COLUMNS.difference(reader.fieldnames or [])
+    if missing:
+        missing_list = ", ".join(sorted(missing))
+        raise ValueError(f"Missing required columns: {missing_list}")
+
+    rows = list(reader)
+    if not rows:
+        raise ValueError(f"Raw billing file is empty: {source_name}")
+    return rows
+
+
+def load_raw_billing(source: Path | str) -> list[dict[str, str]]:
     """Read the raw billing CSV and validate the expected source schema."""
+    if str(source).startswith("s3://"):
+        reader = csv.DictReader(StringIO(read_s3_text(str(source))))
+        return validate_billing_rows(reader, str(source))
+
+    path = Path(source)
     if not path.exists():
         raise FileNotFoundError(f"Raw billing file not found: {path}")
 
     with path.open(newline="") as csv_file:
         reader = csv.DictReader(csv_file)
-        missing = REQUIRED_COLUMNS.difference(reader.fieldnames or [])
+        return validate_billing_rows(reader, str(path))
+
+
+def load_team_budgets(path: Path = DEFAULT_TEAM_BUDGETS) -> dict[str, float]:
+    """Read optional team monthly budgets used for variance reporting."""
+    if not path.exists():
+        return {}
+
+    budgets: dict[str, float] = {}
+    with path.open(newline="") as csv_file:
+        reader = csv.DictReader(csv_file)
+        required = {"team", "monthly_budget"}
+        missing = required.difference(reader.fieldnames or [])
         if missing:
             missing_list = ", ".join(sorted(missing))
-            raise ValueError(f"Missing required columns: {missing_list}")
-
-        rows = list(reader)
-        if not rows:
-            raise ValueError(f"Raw billing file is empty: {path}")
-        return rows
+            raise ValueError(f"Missing budget columns: {missing_list}")
+        for row in reader:
+            team = normalize_text(row.get("team"))
+            budgets[team] = parse_cost(row.get("monthly_budget", "0"))
+    return budgets
 
 
 def parse_cost(value: str) -> float:
@@ -204,9 +252,16 @@ def build_summary_tables(fact: list[dict[str, Any]]) -> dict[str, list[dict[str,
 
     total_spend = round(sum(row["cost"] for row in fact), 2)
     elapsed_days = len(daily_totals)
-    last_date = datetime.strptime(max(daily_totals), "%Y-%m-%d")
+    last_date_text = max(daily_totals)
+    last_date = datetime.strptime(last_date_text, "%Y-%m-%d")
+    current_month = last_date_text[:7]
+    current_month_totals = {
+        billing_date: cost for billing_date, cost in daily_totals.items() if billing_date.startswith(current_month)
+    }
+    current_month_spend = sum(current_month_totals.values())
+    current_month_elapsed_days = len(current_month_totals)
     days_in_month = calendar.monthrange(last_date.year, last_date.month)[1]
-    forecast = round((total_spend / elapsed_days) * days_in_month, 2)
+    forecast = round((current_month_spend / current_month_elapsed_days) * days_in_month, 2)
     top_service = max(service_totals.items(), key=lambda item: item[1])[0]
 
     return {
@@ -221,6 +276,68 @@ def build_summary_tables(fact: list[dict[str, Any]]) -> dict[str, list[dict[str,
             }
         ],
     }
+
+
+def build_monthly_spend_summary(fact: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    monthly_totals: defaultdict[str, float] = defaultdict(float)
+    for row in fact:
+        billing_month = row["billing_date"][:7]
+        monthly_totals[billing_month] += row["cost"]
+
+    rows = []
+    previous_spend: float | None = None
+    for billing_month in sorted(monthly_totals):
+        monthly_spend = round(monthly_totals[billing_month], 2)
+        mom_change = round(monthly_spend - previous_spend, 2) if previous_spend is not None else 0.0
+        mom_change_percent = round((mom_change / previous_spend) * 100, 2) if previous_spend else 0.0
+        rows.append(
+            {
+                "billing_month": billing_month,
+                "monthly_spend": monthly_spend,
+                "previous_month_spend": round(previous_spend or 0.0, 2),
+                "mom_change": mom_change,
+                "mom_change_percent": mom_change_percent,
+            }
+        )
+        previous_spend = monthly_spend
+    return rows
+
+
+def build_team_budget_variance(
+    fact: list[dict[str, Any]],
+    budgets: dict[str, float] | None = None,
+) -> list[dict[str, Any]]:
+    budgets = budgets if budgets is not None else load_team_budgets()
+    monthly_team_totals: defaultdict[tuple[str, str], float] = defaultdict(float)
+    for row in fact:
+        monthly_team_totals[(row["billing_date"][:7], row["team"])] += row["cost"]
+
+    rows = []
+    for (billing_month, team), actual_spend in sorted(monthly_team_totals.items()):
+        budget = round(budgets.get(team, 0.0), 2)
+        actual = round(actual_spend, 2)
+        variance = round(actual - budget, 2)
+        budget_used_percent = round((actual / budget) * 100, 2) if budget else 0.0
+        if not budget:
+            status = "no budget set"
+        elif variance > 0:
+            status = "over budget"
+        elif budget_used_percent >= 85:
+            status = "watch"
+        else:
+            status = "on track"
+        rows.append(
+            {
+                "billing_month": billing_month,
+                "team": team,
+                "actual_spend": actual,
+                "monthly_budget": budget,
+                "variance": variance,
+                "budget_used_percent": budget_used_percent,
+                "status": status,
+            }
+        )
+    return rows
 
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -264,6 +381,8 @@ def build_tables(fact: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     tables = {"fact_cloud_costs": fact}
     tables.update(build_dimensions(fact))
     tables.update(build_summary_tables(fact))
+    tables["monthly_spend_summary"] = build_monthly_spend_summary(fact)
+    tables["team_budget_variance"] = build_team_budget_variance(fact)
     return tables
 
 
@@ -286,7 +405,7 @@ def write_outputs(fact: list[dict[str, Any]], output_dir: Path, db_path: Path) -
 
 
 def run_pipeline(
-    input_path: Path = DEFAULT_INPUT,
+    input_path: Path | str = DEFAULT_INPUT,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     db_path: Path = DEFAULT_DB_PATH,
 ) -> dict[str, Any]:
@@ -300,7 +419,7 @@ def run_pipeline(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Process cloud billing data into analytics-ready outputs.")
-    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT, help="Path to raw cloud billing CSV.")
+    parser.add_argument("--input", default=str(DEFAULT_INPUT), help="Path or s3:// URI to raw cloud billing CSV.")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Directory for processed outputs.")
     parser.add_argument("--db-path", type=Path, default=DEFAULT_DB_PATH, help="SQLite database output path.")
     return parser.parse_args()

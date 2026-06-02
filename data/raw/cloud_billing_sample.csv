@@ -29,3 +29,23 @@ billing_date,cloud_provider,account_id,service,region,usage_type,cost,currency,e
 2026-01-09,AWS,200200200200,AWS Lambda,us-east-1,Request,5.30,USD,dev,data,cost-analytics,lambda-etl,"env=dev;team=data;project=cost-analytics"
 2026-01-10,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,455.40,USD,prod,ml,recommendations,sagemaker-train,"env=prod;team=ml;project=recommendations"
 2026-01-10,AWS,500500500500,Amazon NAT Gateway,us-east-1,NatGateway-Bytes,75.90,USD,unknown,unknown,unallocated,nat-0f666,
+2026-02-01,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,132.30,USD,prod,platform,checkout,i-0a111,"env=prod;team=platform;project=checkout"
+2026-02-01,AWS,100100100100,Amazon RDS,us-east-1,InstanceUsage:db.t3.medium,84.20,USD,prod,platform,checkout,rds-checkout,"env=prod;team=platform;project=checkout"
+2026-02-02,AWS,200200200200,Amazon S3,us-east-1,TimedStorage-ByteHrs,24.75,USD,dev,data,cost-analytics,s3-raw,"env=dev;team=data;project=cost-analytics"
+2026-02-03,AWS,300300300300,Amazon SageMaker,us-west-2,Endpoint-Hours,188.60,USD,prod,ml,recommendations,sagemaker-endpoint,"env=prod;team=ml;project=recommendations"
+2026-02-04,AWS,300300300300,Amazon EC2,us-west-2,BoxUsage:c6i.xlarge,226.10,USD,prod,ml,recommendations,i-0b222,"env=prod;team=ml;project=recommendations"
+2026-02-05,AWS,400400400400,Amazon CloudFront,global,DataTransfer-Out-Bytes,66.40,USD,staging,marketing,campaigns,cf-campaigns,"env=staging;team=marketing;project=campaigns"
+2026-02-06,AWS,500500500500,Amazon EBS,us-east-1,VolumeUsage.gp3,42.15,USD,unknown,unknown,unallocated,vol-0e555,
+2026-02-07,AWS,200200200200,AWS Glue,us-east-1,DPU-Hour,39.80,USD,dev,data,cost-analytics,glue-job,"env=dev;team=data;project=cost-analytics"
+2026-02-08,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,136.55,USD,prod,platform,checkout,i-0a111,"env=prod;team=platform;project=checkout"
+2026-02-09,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,498.25,USD,prod,ml,recommendations,sagemaker-train,"env=prod;team=ml;project=recommendations"
+2026-03-01,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,141.20,USD,prod,platform,checkout,i-0a111,"env=prod;team=platform;project=checkout"
+2026-03-02,AWS,100100100100,Amazon RDS,us-east-1,BackupUsage,31.40,USD,prod,platform,checkout,rds-checkout,"env=prod;team=platform;project=checkout"
+2026-03-03,AWS,200200200200,Amazon Athena,us-east-1,DataScanned,8.75,USD,dev,data,cost-analytics,athena-cost,"env=dev;team=data;project=cost-analytics"
+2026-03-04,AWS,200200200200,AWS Lambda,us-east-1,GB-Second,12.60,USD,dev,data,cost-analytics,lambda-etl,"env=dev;team=data;project=cost-analytics"
+2026-03-05,AWS,300300300300,Amazon EC2,us-west-2,BoxUsage:c6i.xlarge,238.35,USD,prod,ml,recommendations,i-0b222,"env=prod;team=ml;project=recommendations"
+2026-03-06,AWS,300300300300,Amazon SageMaker,us-west-2,Training-Hours,545.10,USD,prod,ml,recommendations,sagemaker-train,"env=prod;team=ml;project=recommendations"
+2026-03-07,AWS,400400400400,Amazon S3,us-east-2,TimedStorage-ByteHrs,17.20,USD,staging,marketing,campaigns,s3-assets,"env=staging;team=marketing;project=campaigns"
+2026-03-08,AWS,400400400400,Amazon CloudFront,global,DataTransfer-Out-Bytes,74.30,USD,staging,marketing,campaigns,cf-campaigns,"env=staging;team=marketing;project=campaigns"
+2026-03-09,AWS,500500500500,Amazon NAT Gateway,us-east-1,NatGateway-Bytes,89.45,USD,unknown,unknown,unallocated,nat-0f666,
+2026-03-10,AWS,100100100100,Amazon EC2,us-east-1,BoxUsage:m6i.large,147.85,USD,prod,platform,checkout,i-0a111,"env=prod;team=platform;project=checkout"

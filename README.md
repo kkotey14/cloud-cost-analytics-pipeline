@@ -4,10 +4,10 @@ A portfolio-ready analytics project for cloud engineering and data analyst roles
 It ingests cloud billing records, cleans and models the data, stores analytics
 tables in SQLite, and powers SQL analysis plus a Streamlit dashboard.
 
-The first implementation is local-first so it can run without AWS credentials.
-The structure maps cleanly to a cloud version later: raw CSV files become S3
-objects, the ETL can run in Lambda or Glue, SQLite can be replaced by Athena or
-PostgreSQL, and alerts can be sent through SNS or Slack.
+The app runs locally without AWS credentials, but the project now includes a
+cloud-ready path: the ETL can read `s3://` billing files, Terraform defines AWS
+storage and alerting infrastructure, and an alert script can send cost spike
+reports to Slack or email.
 
 ## Architecture
 
@@ -21,10 +21,12 @@ etl/process_billing_data.py
         +--> data/processed/dim_date.csv
         +--> data/processed/dim_service.csv
         +--> data/processed/dim_team.csv
+        +--> data/processed/monthly_spend_summary.csv
+        +--> data/processed/team_budget_variance.csv
         +--> data/processed/cloud_costs.db
         |
         v
-sql/*.sql + dashboard/app.py
+sql/*.sql + dashboard/app.py + alerts/send_alerts.py
 ```
 
 ## What It Answers
@@ -34,6 +36,22 @@ sql/*.sql + dashboard/app.py
 - How much cost is untagged or poorly allocated?
 - Did spend spike compared with recent history?
 - What is the projected month-end spend?
+- How does this month compare to last month?
+- Which teams are over or near budget?
+
+## Dashboard Features
+
+- Browser upload for your own billing CSV.
+- Clear overview cards for spend, forecast, ownership issues, services, teams,
+  resources, and data quality.
+- Budget slider to compare projected month-end spend against a target.
+- Guided tabs for overview, cost exploration, problem areas, and organized data.
+- Animated custom SVG charts with plain-text tables behind every visual.
+- Team budget variance reporting from `config/team_budgets.csv`.
+- Multi-month trend and month-over-month change analysis.
+- Mixed-color visual system with simple labels so non-technical users can
+  understand the dashboard quickly.
+- Download button for the cleaned billing table.
 
 ## Quick Start
 
@@ -80,7 +98,7 @@ team
 usage_type
 ```
 
-If you want to see the correct format, use the **Download sample CSV** button
+If you want to see the correct format, use the **Download CSV Template** button
 inside the sidebar.
 
 If you already installed the dependencies, you can restart the dashboard with:
@@ -109,6 +127,69 @@ Check that every SQL file runs against the generated SQLite database:
 
 ```bash
 make sql-check
+```
+
+## S3 Input Support
+
+Local file input:
+
+```bash
+python etl/process_billing_data.py --input data/raw/cloud_billing_sample.csv
+```
+
+S3 input after configuring AWS credentials:
+
+```bash
+python etl/process_billing_data.py --input s3://your-raw-billing-bucket/cloud_billing.csv
+```
+
+The S3 path uses `boto3`, which is included in `requirements.txt`.
+
+## Budget Variance
+
+Team monthly budgets live in:
+
+```text
+config/team_budgets.csv
+```
+
+The ETL creates `team_budget_variance.csv` and a matching SQLite table. The
+dashboard shows whether each team is on track, near budget, over budget, or
+missing a budget.
+
+## Alerts
+
+Generate an alert report locally:
+
+```bash
+python alerts/send_alerts.py
+```
+
+Send to Slack:
+
+```bash
+export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
+python alerts/send_alerts.py
+```
+
+Send by email by setting `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+`ALERT_EMAIL_FROM`, and `ALERT_EMAIL_TO`.
+
+## Terraform
+
+The `terraform/` folder defines:
+
+- Raw billing S3 bucket.
+- Curated analytics S3 bucket.
+- SNS topic for cost alerts.
+- IAM role and policy for a future Lambda or scheduled ETL job.
+
+Run:
+
+```bash
+cd terraform
+terraform init
+terraform plan
 ```
 
 ## How To Use This Project
@@ -144,6 +225,8 @@ cloud-cost-analytics-pipeline/
 ├── data/
 │   ├── raw/cloud_billing_sample.csv
 │   └── processed/
+├── alerts/send_alerts.py
+├── config/team_budgets.csv
 ├── dashboard/app.py
 ├── docs/architecture.md
 ├── etl/process_billing_data.py
@@ -154,7 +237,7 @@ cloud-cost-analytics-pipeline/
 │   ├── top_resources.sql
 │   └── untagged_cost.sql
 ├── tests/test_etl.py
-├── terraform/README.md
+├── terraform/
 ├── requirements.txt
 └── README.md
 ```
@@ -167,23 +250,16 @@ cloud-cost-analytics-pipeline/
   reusable SQL analysis.
 - Implemented cost anomaly flags and month-end forecasting logic for practical
   cloud finance monitoring.
+- Added team budget variance, month-over-month trend analysis, S3 ingestion
+  support, Terraform infrastructure, and Slack/email cost alerting.
 
 ## What To Do Next
 
-For a stronger cloud engineering version:
+For the next stronger version:
 
-1. Add Terraform for an S3 raw bucket, S3 curated bucket, Lambda function, Athena
-   database, and SNS topic.
-2. Move `data/raw/cloud_billing_sample.csv` into S3.
-3. Trigger the ETL from Lambda when a new billing file lands.
-4. Store curated output as Parquet in S3 and query it with Athena.
-5. Add a CloudWatch alarm or SNS alert when unallocated spend crosses a threshold.
-
-For a stronger data analyst version:
-
-1. Add more months of sample billing data.
-2. Add budget targets by team and project.
-3. Create variance SQL: actual spend versus budget.
+1. Package the ETL as a Lambda function and trigger it from S3 object uploads.
+2. Store curated output as Parquet in S3 and query it with Athena.
+3. Add CloudWatch schedules for daily alert checks.
 4. Add a Power BI or Tableau dashboard screenshot to the README.
 5. Write a short insights section explaining where costs are high and what you
    recommend reducing.

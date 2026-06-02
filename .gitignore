@@ -3,4 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
-.streamlit/
+.streamlit/*
+!.streamlit/
+!.streamlit/config.toml

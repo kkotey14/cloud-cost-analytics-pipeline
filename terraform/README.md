@@ -1,12 +1,18 @@
-# Terraform Placeholder
+# Terraform Infrastructure
 
-This directory is reserved for the AWS version of the project.
+This folder defines the AWS resources for a cloud version of the project.
 
-Recommended resources:
+It creates:
 
-- S3 bucket for raw billing exports.
-- S3 bucket or prefix for curated Parquet outputs.
-- Lambda function or Glue job for ETL processing.
-- Athena database and tables.
-- CloudWatch alarms for spend thresholds.
-- SNS topic for alert notifications.
+- Raw S3 bucket for uploaded billing CSV files.
+- Curated S3 bucket for processed analytics output.
+- SNS topic for cost alerts.
+- IAM role and policy that a Lambda or scheduled ETL job can use.
+
+Run from this folder after configuring AWS credentials:
+
+```bash
+terraform init
+terraform plan -var="project_name=cloud-cost-analytics"
+terraform apply -var="project_name=cloud-cost-analytics"
+```

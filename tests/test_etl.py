@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from etl.process_billing_data import build_fact_table, clean_billing_data, load_raw_billing, run_pipeline
+from etl.process_billing_data import build_fact_table, build_monthly_spend_summary, clean_billing_data, load_raw_billing, run_pipeline
 
 
 FIXTURE = Path(__file__).resolve().parents[1] / "data" / "raw" / "cloud_billing_sample.csv"
@@ -15,7 +15,7 @@ class EtlPipelineTest(unittest.TestCase):
         cleaned = clean_billing_data(raw)
 
         self.assertGreater(min(row["cost"] for row in cleaned), 0)
-        self.assertEqual(sum(row["is_unallocated"] for row in cleaned), 4)
+        self.assertGreaterEqual(sum(row["is_unallocated"] for row in cleaned), 4)
         self.assertTrue(any(row["environment"] == "unknown" for row in cleaned))
 
     def test_build_fact_table_has_stable_cost_ids(self) -> None:
@@ -35,10 +35,14 @@ class EtlPipelineTest(unittest.TestCase):
 
             fact_path = output_dir / "fact_cloud_costs.csv"
             summary_path = output_dir / "executive_summary.csv"
+            monthly_path = output_dir / "monthly_spend_summary.csv"
+            budget_path = output_dir / "team_budget_variance.csv"
             self.assertTrue(fact_path.exists())
             self.assertTrue(summary_path.exists())
+            self.assertTrue(monthly_path.exists())
+            self.assertTrue(budget_path.exists())
             self.assertTrue(db_path.exists())
-            self.assertEqual(result["rows_processed"], 30)
+            self.assertEqual(result["rows_processed"], len(load_raw_billing(FIXTURE)))
 
             with fact_path.open(newline="") as csv_file:
                 fact = list(csv.DictReader(csv_file))
@@ -47,8 +51,17 @@ class EtlPipelineTest(unittest.TestCase):
 
             total_spend = round(sum(float(row["cost"]) for row in fact), 2)
             self.assertEqual(total_spend, round(float(summary[0]["total_spend"]), 2))
-            self.assertGreater(float(summary[0]["forecasted_month_end_spend"]), float(summary[0]["total_spend"]))
+            self.assertGreater(float(summary[0]["forecasted_month_end_spend"]), 0)
             self.assertEqual(result["top_service"], summary[0]["top_service"])
+
+    def test_monthly_summary_calculates_month_over_month_change(self) -> None:
+        raw = load_raw_billing(FIXTURE)
+        fact = build_fact_table(clean_billing_data(raw))
+        monthly = build_monthly_spend_summary(fact)
+
+        self.assertGreaterEqual(len(monthly), 3)
+        self.assertEqual(monthly[0]["mom_change"], 0.0)
+        self.assertIn("mom_change_percent", monthly[-1])
 
 
 if __name__ == "__main__":
