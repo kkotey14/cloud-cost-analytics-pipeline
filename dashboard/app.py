@@ -1724,7 +1724,7 @@ if selected_section == "Alerts":
                     except Exception as exc:
                         st.error(f"Slack alert failed: {exc}")
             else:
-                st.info("Slack delivery is hidden until `SLACK_WEBHOOK_URL` is configured.")
+                st.info("Slack delivery is optional. Add `SLACK_WEBHOOK_URL` in deployment settings to enable the Send Slack Alert button.")
 
         with send_cols[1]:
             if email_ready:
@@ -1735,7 +1735,7 @@ if selected_section == "Alerts":
                     except Exception as exc:
                         st.error(f"Email alert failed: {exc}")
             else:
-                st.info("Email delivery is hidden until SMTP environment variables are configured.")
+                st.info("Email delivery is optional. Add SMTP settings in deployment settings to enable the Send Email Alert button.")
 
 if selected_section == "Data":
     st.subheader("Organized Billing Data")
